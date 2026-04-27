@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SINCO ERP - Panel de Pruebas</title>
+    <style>
+        :root {
+            --primary: #1a3a5c;
+            --primary-light: #2c5282;
+            --primary-hover: #1e4a73;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --warning: #f59e0b;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --blue: #2563eb;
+            --blue-bg: #eff6ff;
+            --blue-border: #bfdbfe;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 28px 0;
+            box-shadow: 0 4px 12px rgba(26,58,92,0.3);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .header-logo {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 16px;
+        }
+
+        .header-left h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .header-left p { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+
+        .btn-ejecutar {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: white;
+            color: var(--primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .btn-ejecutar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .btn-ejecutar:active { transform: translateY(0); }
+        .btn-ejecutar:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-ejecutar svg { width: 18px; height: 18px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+        /* Status Banner */
+        .status-banner {
+            display: none;
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            border: 1px solid;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .status-banner.running {
+            display: flex;
+            background: var(--blue-bg);
+            border-color: var(--blue-border);
+            color: var(--blue);
+        }
+
+        .status-banner.success {
+            display: flex;
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--success);
+        }
+
+        .status-banner.error {
+            display: flex;
+            background: var(--danger-bg);
+            border-color: var(--danger-border);
+            color: var(--danger);
+        }
+
+        .status-banner-content { display: flex; align-items: center; gap: 14px; flex: 1; }
+        .status-banner-content svg { width: 22px; height: 22px; flex-shrink: 0; }
+        .status-banner-text h3 { font-size: 15px; font-weight: 600; }
+        .status-banner-text p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+
+        /* Progress Section */
+        .progress-section {
+            display: none;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            padding: 24px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .progress-section.visible { display: block; }
+
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+        .progress-header h2 { font-size: 16px; font-weight: 600; }
+        .progress-header-right { display: flex; align-items: center; gap: 12px; }
+
+        .btn-toggle-all {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-500);
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .btn-toggle-all.visible { display: inline-block; }
+        .btn-toggle-all:hover { background: var(--gray-200); color: var(--gray-700); }
+
+        .progress-percentage {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .progress-bar-container {
+            height: 10px;
+            background: var(--gray-200);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-bar-fill.complete { background: linear-gradient(90deg, var(--success), #22c55e); }
+        .progress-bar-fill.failed { background: linear-gradient(90deg, var(--danger), #ef4444); }
+
+        /* Steps Timeline */
+        .steps-timeline { display: flex; flex-direction: column; gap: 0; }
+
+        .step-item {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 12px 0;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+
+        .step-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 15px; top: 40px; bottom: 0;
+            width: 2px;
+            background: var(--gray-200);
+        }
+
+        .step-item.active:not(:last-child)::after { background: var(--primary); opacity: 0.3; }
+
+        .step-icon {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            font-size: 13px; font-weight: 700;
+            z-index: 1;
+        }
+
+        .step-icon.pending { background: var(--gray-200); color: var(--gray-500); }
+        .step-icon.active { background: var(--blue); color: white; animation: pulse 1.5s infinite; }
+        .step-icon.done { background: var(--success); color: white; }
+        .step-icon.error { background: var(--danger); color: white; }
+
+        .step-content { flex: 1; padding-top: 4px; }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .step-header-left { flex: 1; }
+        .step-name { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+        .step-desc { font-size: 13px; color: var(--gray-500); margin-top: 2px; }
+
+        .step-toggle {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--gray-200);
+            background: var(--gray-50);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .step-toggle:hover { background: var(--gray-200); }
+        .step-toggle svg { width: 14px; height: 14px; color: var(--gray-500); transition: transform 0.2s; }
+        .step-toggle.collapsed svg { transform: rotate(-90deg); }
+
+        .step-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 500px; opacity: 1; }
+        .step-body.collapsed { max-height: 0; opacity: 0; }
+
+        .step-screenshot {
+            margin-top: 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--gray-200);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+            max-width: 100%;
+        }
+
+        .step-screenshot:hover { box-shadow: var(--shadow-md); }
+
+        .step-screenshot img {
+            width: 100%;
+            display: block;
+            max-height: 180px;
+            object-fit: cover;
+            object-position: top;
+            transition: max-height 0.3s ease;
+        }
+
+        .step-screenshot.expanded img {
+            max-height: none;
+            object-fit: contain;
+        }
+
+        .step-screenshot-hint {
+            font-size: 11px;
+            color: var(--gray-400);
+            text-align: center;
+            padding: 4px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-100);
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            cursor: pointer;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .lightbox.active { display: flex; }
+
+        .lightbox img {
+            max-width: 95%;
+            max-height: 95vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: background 0.2s;
+        }
+
+        .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+
+        /* Summary Cards */
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+        .summary-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+        }
+
+        .summary-card .label {
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--gray-500); margin-bottom: 8px;
+        }
+
+        .summary-card .value { font-size: 32px; font-weight: 700; }
+        .summary-card .value.success { color: var(--success); }
+        .summary-card .value.danger { color: var(--danger); }
+
+        .summary-card .sub { font-size: 13px; color: var(--gray-500); margin-top: 4px; }
+
+        .mini-progress { height: 6px; background: var(--gray-200); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+        .mini-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+        .mini-progress-fill.success { background: var(--success); }
+        .mini-progress-fill.danger { background: var(--danger); }
+
+        /* Results Table */
+        .results-section {
+            display: none;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+            margin-bottom: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .results-section.visible { display: block; }
+
+        .section-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .section-header h2 { font-size: 16px; font-weight: 600; }
+        .section-header svg { width: 20px; height: 20px; color: var(--gray-400); }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        thead th {
+            background: var(--gray-50); padding: 12px 24px;
+            text-align: left; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--gray-500); border-bottom: 1px solid var(--gray-200);
+        }
+
+        tbody td {
+            padding: 16px 24px; font-size: 14px;
+            border-bottom: 1px solid var(--gray-100);
+            vertical-align: middle;
+        }
+
+        tbody tr:hover { background: var(--gray-50); }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 14px; border-radius: 20px;
+            font-size: 13px; font-weight: 600;
+        }
+
+        .badge.ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+        .badge.fail { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+        .badge svg { width: 14px; height: 14px; }
+
+        .mono {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px; background: var(--gray-100);
+            padding: 3px 8px; border-radius: 6px; color: var(--primary);
+        }
+
+        /* Environment */
+        .env-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; padding: 16px 24px; }
+        .env-item { display: flex; gap: 10px; font-size: 14px; padding: 6px 0; }
+        .env-label { color: var(--gray-500); font-size: 13px; min-width: 80px; }
+        .env-value { font-weight: 500; color: var(--gray-900); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 32px;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+        }
+
+        .empty-state svg { width: 64px; height: 64px; color: var(--gray-300); margin-bottom: 20px; }
+        .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; color: var(--gray-500); max-width: 400px; margin: 0 auto; }
+
+        /* Log */
+        .log-section {
+            display: none;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .log-section.visible { display: block; }
+
+        .log-body {
+            padding: 16px 24px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 12px;
+            background: var(--gray-900);
+            color: #a5f3fc;
+        }
+
+        .log-entry { padding: 3px 0; }
+        .log-entry .time { color: var(--gray-500); }
+        .log-entry .msg-info { color: #93c5fd; }
+        .log-entry .msg-ok { color: #86efac; }
+        .log-entry .msg-err { color: #fca5a5; }
+
+        /* Config Panel */
+        .config-panel {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            padding: 20px 24px;
+        }
+
+        .config-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-500);
+            margin-bottom: 6px;
+        }
+
+        .config-field input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--gray-900);
+            background: var(--gray-50);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .config-field input:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(44,82,130,0.1);
+            background: white;
+        }
+
+        .config-field input::placeholder { color: var(--gray-400); }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper input { padding-right: 42px; }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--gray-400);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .password-toggle:hover { color: var(--gray-700); }
+        .password-toggle svg { width: 18px; height: 18px; }
+
+        .config-url { grid-column: 1 / -1; }
+
+        .footer { text-align: center; padding: 28px; color: var(--gray-400); font-size: 12px; }
+
+        /* Spinner */
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2.5px solid var(--primary-light);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <svg preserveAspectRatio="xMinYMax meet" focusable="false" width="60" height="60" style="border-radius:10px"><defs><linearGradient id="gradADPRO" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#1D7478;stop-opacity:1"></stop><stop offset="100%" style="stop-color:#058C97;stop-opacity:1"></stop></linearGradient></defs><rect width="101%" height="35%" id="recttextosinco" style="fill: rgb(29, 116, 120);"></rect><text x="50%" y="25%" text-anchor="middle" letter-spacing="1px" id="textosinco" style="fill: rgb(255, 255, 255); font-size: 11px; font-family: Antipasto;">SINCO</text><rect y="37%" width="101%" height="70%" id="recttextomodulo" style="fill: url(#gradADPRO);"></rect><text x="50%" y="80%" text-anchor="middle" id="textomodulo" letter-spacing="0.1px" class="extenso" style="fill: rgb(255, 255, 255); font-size: 16px; font-family: Antipasto;">ADPRO</text></svg>
+                <div>
+                    <h1>Panel de Pruebas Automatizadas</h1>
+                    <p>SINCO ERP - Pedidos Proyecto</p>
+                </div>
+            </div>
+            <button class="btn-ejecutar" id="btnEjecutar" onclick="ejecutarPruebas()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Ejecutar pruebas
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Config Panel -->
+        <div class="config-panel">
+            <div class="section-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <h2>Configuracion</h2>
+            </div>
+            <div class="config-grid">
+                <div class="config-field">
+                    <label>Usuario</label>
+                    <input type="text" id="cfgUsuario" placeholder="Usuario">
+                </div>
+                <div class="config-field">
+                    <label>Contrasena</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="cfgPassword" placeholder="Contrasena">
+                        <button type="button" class="password-toggle" onclick="togglePassword()" id="btnTogglePass">
+                            <svg id="iconEyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                            <svg id="iconEyeOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label>Empresa</label>
+                    <input type="text" id="cfgEmpresa" placeholder="Nombre de la empresa">
+                </div>
+                <div class="config-field config-url">
+                    <label>URL</label>
+                    <input type="text" id="cfgUrl" placeholder="URL de SINCO ERP">
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Banner -->
+        <div class="status-banner" id="statusBanner">
+            <div class="status-banner-content">
+                <div id="statusIcon"></div>
+                <div class="status-banner-text">
+                    <h3 id="statusTitle"></h3>
+                    <p id="statusDesc"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header">
+                <h2>Progreso de ejecucion</h2>
+                <div class="progress-header-right">
+                    <button class="btn-toggle-all" id="btnToggleAll" onclick="toggleAllSteps()">Ocultar capturas</button>
+                    <span class="progress-percentage" id="progressPercent">0%</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <div class="steps-timeline" id="stepsTimeline"></div>
+        </div>
+
+        <!-- Summary Cards (hidden until results) -->
+        <div class="summary" id="summaryCards" style="display:none"></div>
+
+        <!-- Results Table -->
+        <div class="results-section" id="resultsSection">
+            <div class="section-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <h2>Resultados de pruebas</h2>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:50px">#</th>
+                        <th>Prueba</th>
+                        <th>Dato de entrada</th>
+                        <th>Resultado esperado</th>
+                        <th>Resultado obtenido</th>
+                        <th style="width:130px">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Environment -->
+        <div class="results-section" id="envSection">
+            <div class="section-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                <h2>Entorno de ejecucion</h2>
+            </div>
+            <div class="env-grid" id="envGrid"></div>
+        </div>
+
+        <!-- Log -->
+        <div class="log-section" id="logSection">
+            <div class="section-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <h2>Log de ejecucion</h2>
+            </div>
+            <div class="log-body" id="logBody"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <h3>Sin pruebas ejecutadas</h3>
+            <p>Haz click en <strong>"Ejecutar pruebas"</strong> para iniciar las pruebas automatizadas sobre el modulo de Pedidos Proyecto.</p>
+        </div>
+    </div>
+
+    <!-- Lightbox para ver screenshot en grande -->
+    <div class="lightbox" id="lightbox" onclick="cerrarLightbox()">
+        <div class="lightbox-close">&times;</div>
+        <img id="lightboxImg" src="" alt="Screenshot">
+    </div>
+
+    <div class="footer">SINCO ERP - Panel de Pruebas Automatizadas</div>
+
+    <script>
+        let ejecutando = false;
+
+        // Cargar configuracion del servidor al iniciar
+        fetch('/config')
+            .then(r => r.json())
+            .then(cfg => {
+                document.getElementById('cfgUsuario').value = cfg.usuario || '';
+                document.getElementById('cfgPassword').value = cfg.password || '';
+                document.getElementById('cfgEmpresa').value = cfg.empresa || '';
+                document.getElementById('cfgUrl').value = cfg.url || '';
+            });
+
+        function abrirLightbox(src) {
+            document.getElementById('lightboxImg').src = src;
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function cerrarLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') cerrarLightbox();
+        });
+
+        function togglePassword() {
+            const input = document.getElementById('cfgPassword');
+            const eyeOff = document.getElementById('iconEyeOff');
+            const eyeOn = document.getElementById('iconEyeOn');
+            if (input.type === 'password') {
+                input.type = 'text';
+                eyeOff.style.display = 'none';
+                eyeOn.style.display = 'block';
+            } else {
+                input.type = 'password';
+                eyeOff.style.display = 'block';
+                eyeOn.style.display = 'none';
+            }
+        }
+
+        function getConfig() {
+            return {
+                usuario: document.getElementById('cfgUsuario').value.trim(),
+                password: document.getElementById('cfgPassword').value.trim(),
+                empresa: document.getElementById('cfgEmpresa').value.trim(),
+                url: document.getElementById('cfgUrl').value.trim(),
+            };
+        }
+
+        function hora() {
+            return new Date().toLocaleTimeString('es-CO', { hour12: false });
+        }
+
+        function log(msg, tipo = 'info') {
+            const el = document.getElementById('logBody');
+            const cls = tipo === 'ok' ? 'msg-ok' : tipo === 'err' ? 'msg-err' : 'msg-info';
+            el.innerHTML += `<div class="log-entry"><span class="time">[${hora()}]</span> <span class="${cls}">${msg}</span></div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function setStatus(tipo, titulo, desc) {
+            const banner = document.getElementById('statusBanner');
+            banner.className = `status-banner ${tipo}`;
+
+            const icons = {
+                running: `<div class="spinner"></div>`,
+                success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+                error: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
+            };
+
+            document.getElementById('statusIcon').innerHTML = icons[tipo] || '';
+            document.getElementById('statusTitle').textContent = titulo;
+            document.getElementById('statusDesc').textContent = desc;
+        }
+
+        function ejecutarPruebas() {
+            if (ejecutando) return;
+            ejecutando = true;
+
+            const btn = document.getElementById('btnEjecutar');
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner"></div> Ejecutando...`;
+
+            // Reset UI
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('progressSection').classList.add('visible');
+            document.getElementById('logSection').classList.add('visible');
+            document.getElementById('resultsSection').classList.remove('visible');
+            document.getElementById('envSection').classList.remove('visible');
+            document.getElementById('summaryCards').style.display = 'none';
+            document.getElementById('progressBar').className = 'progress-bar-fill';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressPercent').textContent = '0%';
+            document.getElementById('stepsTimeline').innerHTML = '';
+            document.getElementById('resultsBody').innerHTML = '';
+            document.getElementById('logBody').innerHTML = '';
+            document.getElementById('btnToggleAll').classList.remove('visible');
+            allCollapsed = false;
+            Object.keys(pasosRegistrados).forEach(k => delete pasosRegistrados[k]);
+
+            setStatus('running', 'Ejecutando pruebas...', 'Conectando con SINCO ERP');
+            log('Iniciando ejecucion de pruebas...');
+
+            const config = getConfig();
+            fetch('/ejecutar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config),
+            })
+                .then(r => r.json())
+                .then(data => {
+                    const source = new EventSource(`/stream/${data.session_id}`);
+
+                    source.onmessage = function(event) {
+                        const d = JSON.parse(event.data);
+
+                        if (d.tipo === 'progreso') {
+                            document.getElementById('progressBar').style.width = d.porcentaje + '%';
+                            document.getElementById('progressPercent').textContent = d.porcentaje + '%';
+
+                            setStatus('running', 'Ejecutando pruebas...', `Paso ${d.paso}/${d.total}: ${d.descripcion}`);
+                            log(`[${d.paso}/${d.total}] ${d.nombre}: ${d.descripcion}`);
+
+                            // Update steps timeline
+                            actualizarPasos(d.paso, d.total, d.nombre, d.descripcion, d.screenshot);
+                        }
+
+                        if (d.tipo === 'info') {
+                            log(d.mensaje, 'ok');
+                        }
+
+                        if (d.tipo === 'error') {
+                            log(`ERROR: ${d.mensaje}`, 'err');
+                        }
+
+                        if (d.tipo === 'resultado') {
+                            mostrarResultado(d);
+                        }
+
+                        if (d.tipo === 'fin') {
+                            source.close();
+                            ejecutando = false;
+                            btn.disabled = false;
+                            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Ejecutar pruebas`;
+
+                            if (d.exito) {
+                                document.getElementById('progressBar').classList.add('complete');
+                                setStatus('success', 'Pruebas finalizadas', 'Todas las pruebas se ejecutaron correctamente.');
+                                log('Pruebas finalizadas con exito.', 'ok');
+                            } else {
+                                document.getElementById('progressBar').classList.add('failed');
+                                setStatus('error', 'Pruebas finalizadas con errores', 'Una o mas pruebas fallaron.');
+                                log('Pruebas finalizadas con errores.', 'err');
+                            }
+
+                            // Marcar todos los pasos como completados
+                            document.querySelectorAll('.step-icon.active').forEach(el => {
+                                el.classList.remove('active');
+                                el.classList.add(d.exito ? 'done' : 'error');
+                            });
+                        }
+                    };
+
+                    source.onerror = function() {
+                        source.close();
+                        ejecutando = false;
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Ejecutar pruebas`;
+                        setStatus('error', 'Error de conexion', 'Se perdio la conexion con el servidor.');
+                        log('Error: conexion perdida', 'err');
+                    };
+                });
+        }
+
+        const pasosRegistrados = {};
+        let allCollapsed = false;
+
+        function toggleStep(num) {
+            const body = document.getElementById(`step-body-${num}`);
+            const toggle = document.getElementById(`step-toggle-${num}`);
+            if (body) {
+                body.classList.toggle('collapsed');
+                if (toggle) toggle.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleAllSteps() {
+            allCollapsed = !allCollapsed;
+            const btn = document.getElementById('btnToggleAll');
+            btn.textContent = allCollapsed ? 'Mostrar capturas' : 'Ocultar capturas';
+
+            Object.keys(pasosRegistrados).forEach(k => {
+                const body = document.getElementById(`step-body-${k}`);
+                const toggle = document.getElementById(`step-toggle-${k}`);
+                if (body) {
+                    if (allCollapsed) {
+                        body.classList.add('collapsed');
+                        if (toggle) toggle.classList.add('collapsed');
+                    } else {
+                        body.classList.remove('collapsed');
+                        if (toggle) toggle.classList.remove('collapsed');
+                    }
+                }
+            });
+        }
+
+        function actualizarPasos(pasoActual, total, nombre, descripcion, screenshot) {
+            const timeline = document.getElementById('stepsTimeline');
+
+            // Marcar el paso anterior como completado
+            Object.keys(pasosRegistrados).forEach(k => {
+                const num = parseInt(k);
+                if (num < pasoActual) {
+                    const icon = document.getElementById(`step-icon-${num}`);
+                    if (icon) { icon.className = 'step-icon done'; icon.innerHTML = '&#10003;'; }
+                }
+            });
+
+            // Agregar nuevo paso si no existe
+            if (!pasosRegistrados[pasoActual]) {
+                pasosRegistrados[pasoActual] = true;
+
+                const imgSrc = screenshot ? `data:image/png;base64,${screenshot}` : '';
+                const imgHtml = screenshot
+                    ? `<div class="step-screenshot" onclick="event.stopPropagation(); abrirLightbox(this.querySelector('img').src)">
+                           <img src="${imgSrc}" alt="Paso ${pasoActual}">
+                           <div class="step-screenshot-hint">Click para ampliar</div>
+                       </div>`
+                    : '';
+
+                const hasImg = screenshot ? true : false;
+                const toggleHtml = hasImg
+                    ? `<div class="step-toggle ${allCollapsed ? 'collapsed' : ''}" id="step-toggle-${pasoActual}" onclick="event.stopPropagation(); toggleStep(${pasoActual})">
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                       </div>`
+                    : '';
+
+                const div = document.createElement('div');
+                div.className = 'step-item active';
+                div.innerHTML = `
+                    <div class="step-icon active" id="step-icon-${pasoActual}">${pasoActual}</div>
+                    <div class="step-content">
+                        <div class="step-header" onclick="${hasImg ? `toggleStep(${pasoActual})` : ''}">
+                            <div class="step-header-left">
+                                <div class="step-name">${nombre}</div>
+                                <div class="step-desc">${descripcion}</div>
+                            </div>
+                            ${toggleHtml}
+                        </div>
+                        <div class="step-body ${allCollapsed ? 'collapsed' : ''}" id="step-body-${pasoActual}">
+                            ${imgHtml}
+                        </div>
+                    </div>`;
+                timeline.appendChild(div);
+                timeline.scrollTop = timeline.scrollHeight;
+
+                // Mostrar boton global si hay capturas
+                if (hasImg) {
+                    document.getElementById('btnToggleAll').classList.add('visible');
+                }
+            }
+        }
+
+        function mostrarResultado(d) {
+            // Show results table
+            document.getElementById('resultsSection').classList.add('visible');
+            document.getElementById('envSection').classList.add('visible');
+
+            const esOk = d.estado === 'ok';
+            const iconSvg = esOk
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+            document.getElementById('resultsBody').innerHTML = `
+                <tr>
+                    <td style="font-weight:600;color:var(--gray-500)">1</td>
+                    <td><strong>${d.prueba}</strong></td>
+                    <td><span class="mono">${d.dato_entrada}</span></td>
+                    <td>${d.esperado}</td>
+                    <td>${d.obtenido}</td>
+                    <td><span class="badge ${d.estado}">${iconSvg} ${esOk ? 'Aprobada' : 'Fallida'}</span></td>
+                </tr>`;
+
+            // Environment
+            document.getElementById('envGrid').innerHTML = `
+                <div class="env-item"><span class="env-label">Empresa</span><span class="env-value">${d.empresa}</span></div>
+                <div class="env-item"><span class="env-label">Usuario</span><span class="env-value">${d.usuario}</span></div>
+                <div class="env-item"><span class="env-label">Fecha</span><span class="env-value">${d.fecha}</span></div>
+                <div class="env-item"><span class="env-label">Ruta</span><span class="env-value">ADPRO / Almacen / Pedidos / Pedidos proyecto</span></div>`;
+
+            // Summary cards
+            const total = 1, exitosas = esOk ? 1 : 0, fallidas = esOk ? 0 : 1;
+            const pct = Math.round((exitosas / total) * 100);
+            const pctClass = esOk ? 'success' : 'danger';
+
+            document.getElementById('summaryCards').style.display = 'grid';
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="summary-card">
+                    <div class="label">Total pruebas</div>
+                    <div class="value">${total}</div>
+                    <div class="sub">Pruebas ejecutadas</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Exitosas</div>
+                    <div class="value success">${exitosas}</div>
+                    <div class="sub">Pruebas aprobadas</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Fallidas</div>
+                    <div class="value danger">${fallidas}</div>
+                    <div class="sub">Pruebas con error</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Tasa de exito</div>
+                    <div class="value">${pct}%</div>
+                    <div class="mini-progress"><div class="mini-progress-fill ${pctClass}" style="width:${pct}%"></div></div>
+                </div>`;
+        }
+    </script>
+</body>
+</html>
