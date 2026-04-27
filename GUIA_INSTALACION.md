@@ -1,129 +1,166 @@
-# Guía de instalación - Script automático SINCO
+# Guia de instalacion - Pruebas automatizadas SINCO ERP
 
-Este script abre automáticamente el navegador, entra a la página de SINCO e inicia sesión con las credenciales configuradas.
+Este proyecto ejecuta pruebas automatizadas sobre SINCO ERP desde una pagina web.
+Solo necesitas hacer click en un boton y ver los resultados en pantalla.
 
 ---
 
 ## Paso 1: Instalar Python
 
-Si no tienes Python instalado, descárgalo desde:
+Descarga Python desde:
 
-👉 https://www.python.org/downloads/
+https://www.python.org/downloads/
 
-Durante la instalación, **marca la casilla "Add Python to PATH"** (esto es muy importante).
+**MUY IMPORTANTE:** Durante la instalacion, marca la casilla **"Add Python to PATH"**.
 
-Para verificar que quedó instalado correctamente, abre una **terminal** y escribe:
+Para verificar que quedo instalado, abre una terminal y escribe:
 
-```
+```bash
 python3 --version
 ```
 
-Debe aparecer algo como `Python 3.x.x`. Si aparece un error, reinicia el computador e intenta de nuevo.
+Debe aparecer algo como `Python 3.x.x`.
 
-### ¿Cómo abrir una terminal?
+### Como abrir una terminal
 
-- **Mac**: Buscar "Terminal" en Spotlight (Cmd + Espacio)
-- **Windows**: Buscar "cmd" o "PowerShell" en el menú de inicio
-
----
-
-## Paso 2: Copiar el proyecto
-
-Copia la carpeta **sinco** completa al computador. Dentro debe haber estos archivos:
-
-```
-sinco/
-├── main.py              ← el script principal
-├── requirements.txt     ← lista de dependencias
-└── GUIA_INSTALACION.md  ← este documento
-```
+- **Mac**: Presiona `Cmd + Espacio`, escribe `Terminal` y presiona Enter
+- **Windows**: Presiona la tecla Windows, escribe `cmd` y presiona Enter
 
 ---
 
-## Paso 3: Abrir la terminal en la carpeta del proyecto
+## Paso 2: Descargar el proyecto
 
-1. Abre una terminal
-2. Escribe el siguiente comando para ir a la carpeta del proyecto (ajusta la ruta según donde hayas copiado la carpeta):
+Abre una terminal y escribe estos comandos uno por uno:
 
-**Mac:**
-```
-cd /Users/TU_USUARIO/Documents/sinco
+```bash
+git clone https://github.com/diafara2003/playwright-testing.git
 ```
 
-**Windows:**
-```
-cd C:\Users\TU_USUARIO\Documents\sinco
+```bash
+cd playwright-testing
 ```
 
-> Reemplaza `TU_USUARIO` por tu nombre de usuario del computador.
+> Si no tienes `git` instalado, puedes descargar el proyecto como ZIP desde GitHub:
+> Ve a https://github.com/diafara2003/playwright-testing, haz click en el boton verde **"Code"** y luego en **"Download ZIP"**. Descomprime la carpeta y abre una terminal dentro de ella.
 
 ---
 
-## Paso 4: Instalar dependencias
+## Paso 3: Instalar dependencias
 
-Copia y pega este comando en la terminal y presiona **Enter**:
+Escribe este comando en la terminal y presiona Enter:
 
-```
+```bash
 pip3 install -r requirements.txt
 ```
 
-Espera a que termine (puede tardar unos segundos).
+> **En Windows**, si `pip3` no funciona, intenta con `pip`:
+> ```bash
+> pip install -r requirements.txt
+> ```
 
 ---
 
-## Paso 5: Instalar el navegador
+## Paso 4: Instalar el navegador
 
-Copia y pega este comando en la terminal y presiona **Enter**:
+Escribe este comando y presiona Enter:
 
-```
+```bash
 python3 -m playwright install chromium
 ```
 
-Esto descarga el navegador que usará el script. Puede tardar unos minutos dependiendo de tu conexión a internet.
+> **En Windows**, si `python3` no funciona, intenta con `python`:
+> ```bash
+> python -m playwright install chromium
+> ```
+
+Esto descarga el navegador que usa el programa. Puede tardar unos minutos.
 
 ---
 
-## Paso 6: Ejecutar el script
+## Paso 5: Iniciar el servidor
 
-Copia y pega este comando en la terminal y presiona **Enter**:
+Escribe este comando:
+
+```bash
+python3 server.py
+```
+
+> **En Windows**:
+> ```bash
+> python server.py
+> ```
+
+Debe aparecer el mensaje:
 
 ```
-python3 main.py
+Servidor iniciado en http://localhost:5050
 ```
 
-### ¿Qué va a pasar?
-
-1. Se abrirá una ventana del navegador automáticamente
-2. El navegador entrará a la página de SINCO
-3. Escribirá el usuario y la contraseña solo
-4. Tomará una foto de la pantalla (se guarda como `paso2_despues_login.png` en la misma carpeta)
-5. Se cerrará el navegador después de 5 segundos
+**No cierres esta terminal.** Debe quedar abierta mientras usas el programa.
 
 ---
 
-## Cambiar usuario y contraseña
+## Paso 6: Abrir el panel de pruebas
 
-Si necesitas usar otras credenciales, abre el archivo `main.py` con cualquier editor de texto (por ejemplo Bloc de Notas o TextEdit) y cambia estas líneas al inicio del archivo:
+Abre cualquier navegador (Chrome, Edge, Firefox) y escribe en la barra de direcciones:
 
 ```
-USUARIO = "admin"
-PASSWORD = "Admin123"
+http://localhost:5050
 ```
 
-Guarda el archivo y vuelve a ejecutar el paso 6.
+Veras el **Panel de Pruebas Automatizadas**.
+
+---
+
+## Como usar el panel
+
+1. **Configura los datos** en la seccion superior:
+   - **Usuario**: Tu usuario de SINCO
+   - **Contrasena**: Tu contrasena de SINCO
+   - **Empresa**: El nombre exacto de la empresa (como aparece en SINCO)
+   - **URL**: La direccion de tu SINCO ERP
+
+2. **Haz click en "Ejecutar pruebas"**
+
+3. **Observa el progreso**:
+   - Veras una barra de progreso avanzando
+   - Cada paso muestra una captura de pantalla de lo que esta haciendo
+   - Puedes hacer click en las capturas para verlas en grande
+   - Puedes ocultar/mostrar las capturas con el boton "Ocultar capturas"
+
+4. **Revisa los resultados**:
+   - **OK (verde)**: La prueba paso correctamente
+   - **X (rojo)**: La prueba fallo
+
+---
+
+## Para detener el servidor
+
+Ve a la terminal donde ejecutaste `python3 server.py` y presiona `Ctrl + C`.
+
+---
+
+## Para volver a usarlo otro dia
+
+1. Abre una terminal
+2. Ve a la carpeta del proyecto:
+   ```bash
+   cd playwright-testing
+   ```
+3. Inicia el servidor:
+   ```bash
+   python3 server.py
+   ```
+4. Abre `http://localhost:5050` en el navegador
 
 ---
 
 ## Problemas frecuentes
 
-**"command not found" o "no se reconoce el comando"**
-→ Python no está instalado o no se agregó al PATH. Vuelve al Paso 1 y asegúrate de marcar "Add Python to PATH" durante la instalación.
-
-**El navegador no se abre**
-→ Verifica que ejecutaste el Paso 5 (instalar el navegador).
-
-**Error de conexión o la página no carga**
-→ Verifica que tienes acceso a internet y que puedes abrir https://desarrollo.sincoerp.com en un navegador normal.
-
-**En Windows, `pip3` no funciona**
-→ Intenta con `pip` en lugar de `pip3`, y `python` en lugar de `python3`.
+| Problema | Solucion |
+|----------|----------|
+| `command not found: python3` | Instala Python (Paso 1) o usa `python` en vez de `python3` |
+| `command not found: pip3` | Usa `pip` en vez de `pip3` o `python -m pip` |
+| El navegador no carga `localhost:5050` | Verifica que la terminal con el servidor siga abierta |
+| `Address already in use` | Otro programa usa el puerto. Cierra la terminal anterior y vuelve a intentar |
+| Error al ejecutar la prueba | Verifica que los datos de configuracion (usuario, contrasena, empresa, URL) sean correctos |
