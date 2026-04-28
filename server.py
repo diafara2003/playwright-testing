@@ -1,21 +1,23 @@
+import os
 import re
 import json
 import queue
 import base64
 import threading
+import importlib
 from datetime import datetime
 from flask import Flask, Response, send_file, jsonify, request
 from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 
-# Cola global para enviar eventos al frontend
 eventos = {}
 
 USUARIO = "office"
 PASSWORD = "Office123"
 EMPRESA = "SincoPlus Pruebas Módulos"
 URL_BASE = "https://www4.sincoerp.com/SincoPlusPruebasModulos2022/V3/Marco/Seleccion_iv.aspx"
+PRUEBAS_DIR = os.path.join(os.path.dirname(__file__), "pruebas")
 
 
 def enviar_evento(session_id, tipo, data):
@@ -23,12 +25,42 @@ def enviar_evento(session_id, tipo, data):
         eventos[session_id].put(json.dumps({"tipo": tipo, **data}))
 
 
-def ejecutar_prueba(session_id, usuario, password, empresa, url_base):
-    total_pasos = 10
+def descubrir_pruebas():
+    """Escanea la carpeta pruebas/ y retorna lista de pruebas disponibles."""
+    pruebas = []
+    if not os.path.isdir(PRUEBAS_DIR):
+        return pruebas
+    for archivo in sorted(os.listdir(PRUEBAS_DIR)):
+        if archivo.endswith(".py") and archivo != "__init__.py":
+            prueba_id = archivo[:-3]
+            # Leer el docstring del archivo para obtener el nombre
+            ruta = os.path.join(PRUEBAS_DIR, archivo)
+            nombre = prueba_id.replace("_", " ").title()
+            try:
+                with open(ruta, "r", encoding="utf-8") as f:
+                    contenido = f.read()
+                match = re.search(r'Prueba:\s*(.+)', contenido)
+                if match:
+                    nombre = match.group(1).strip()
+            except Exception:
+                pass
+            pruebas.append({"id": prueba_id, "nombre": nombre})
+    return pruebas
+
+
+def cargar_prueba(prueba_id):
+    """Importa dinámicamente un modulo de prueba."""
+    modulo = importlib.import_module(f"pruebas.{prueba_id}")
+    importlib.reload(modulo)
+    return modulo
+
+
+def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, prueba_id):
+    """Runner genérico: login + navegacion + ejecuta la prueba grabada."""
     paso_actual = 0
+    total_pasos = 9
 
     def captura(pagina):
-        """Toma screenshot y retorna base64."""
         buf = pagina.screenshot()
         return base64.b64encode(buf).decode("utf-8")
 
@@ -46,6 +78,13 @@ def ejecutar_prueba(session_id, usuario, password, empresa, url_base):
         if screenshot_b64:
             data["screenshot"] = screenshot_b64
         enviar_evento(session_id, "progreso", data)
+
+    try:
+        modulo = cargar_prueba(prueba_id)
+    except Exception as e:
+        enviar_evento(session_id, "error", {"mensaje": f"No se pudo cargar la prueba '{prueba_id}': {e}"})
+        enviar_evento(session_id, "fin", {"exito": False})
+        return
 
     try:
         with sync_playwright() as p:
@@ -84,78 +123,43 @@ def ejecutar_prueba(session_id, usuario, password, empresa, url_base):
             paso("Ingresar", "Ingreso al sistema completado", captura(pagina))
 
             # Paso 6: Navegar menu
-            pagina.locator("text=ADPRO").first.wait_for(state="visible", timeout=10000)
-            pagina.locator("text=ADPRO").first.click()
+            pagina.get_by_title("Administración de proyectos").click()
             pagina.wait_for_timeout(2000)
-
-            pagina.locator("text=Almacén").first.wait_for(state="visible", timeout=10000)
-            pagina.locator("text=Almacén").first.click()
+            pagina.get_by_title("Ruta: ADPRO/Almacén").click()
             pagina.wait_for_timeout(2000)
-
-            pagina.locator("text=Pedidos").first.wait_for(state="visible", timeout=10000)
-            pagina.locator("text=Pedidos").first.click()
+            pagina.get_by_role("button", name="PEDIDOS").click()
             pagina.wait_for_timeout(2000)
-
-            pagina.locator("text=Pedidos proyecto").last.wait_for(state="visible", timeout=10000)
-            pagina.locator("text=Pedidos proyecto").last.click()
+            pagina.get_by_role("button", name="Pedidos proyecto").click()
             pagina.wait_for_load_state("networkidle")
             pagina.wait_for_timeout(8000)
             paso("Navegacion", "Ruta: ADPRO > Almacen > Pedidos > Pedidos proyecto", captura(pagina))
 
-            # Paso 7: Leer pedido
-            frame = pagina.frames[1]
-            primer_pedido = frame.locator("text=/Pedido No\\./").first
-            primer_pedido.wait_for(state="visible", timeout=15000)
-            texto_pedido = primer_pedido.inner_text()
+            # Paso 7: Screenshot antes de la prueba
+            paso("Inicio prueba", f"Ejecutando prueba: {prueba_id}", captura(pagina))
 
-            match = re.search(r"Pedido No\.\s*(.+)", texto_pedido)
-            numero_pedido = match.group(1).strip() if match else texto_pedido
-            paso("Lectura", f"Pedido encontrado: {texto_pedido}", captura(pagina))
+            # Paso 8: Ejecutar la prueba grabada
+            frame = pagina.locator("#pagina1").content_frame
+            resultado = modulo.ejecutar(pagina, frame)
+            paso("Prueba ejecutada", "Acciones de la prueba completadas", captura(pagina))
 
-            enviar_evento(session_id, "info", {
-                "mensaje": f"Pedido encontrado: {texto_pedido}"
-            })
-
-            # Paso 8: Abrir filtro
-            frame.locator("text=Filtrar").first.wait_for(state="visible", timeout=10000)
-            frame.locator("text=Filtrar").first.click()
-            pagina.wait_for_timeout(3000)
-            paso("Filtro", "Drawer de filtro abierto", captura(pagina))
-
-            # Paso 9: Escribir y consultar
-            input_pedido = frame.get_by_placeholder("Ingresar Pedido No.")
-            input_pedido.wait_for(state="visible", timeout=10000)
-            input_pedido.click()
-            input_pedido.fill(numero_pedido)
-            pagina.wait_for_timeout(1000)
-
-            frame.locator("button:has-text('Consultar')").first.wait_for(state="visible", timeout=10000)
-            frame.locator("button:has-text('Consultar')").first.click()
-            pagina.wait_for_timeout(8000)
-            paso("Consulta", f"Filtrado por pedido {numero_pedido}", captura(pagina))
-
-            # Paso 10: Validar
-            pedidos_visibles = frame.locator("text=/Pedido No\\./").all()
-            cantidad = sum(1 for p in pedidos_visibles if p.is_visible())
-            paso("Validacion", f"Resultados: {cantidad} registro(s) en la tabla", captura(pagina))
+            # Paso 9: Validacion
+            paso("Validacion", "Prueba finalizada", captura(pagina))
 
             navegador.close()
 
-        es_ok = cantidad > 0
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        enviar_evento(session_id, "resultado", {
-            "prueba": "Filtro de pedidos por numero",
-            "dato_entrada": numero_pedido,
-            "esperado": "La tabla muestra solo el pedido filtrado",
-            "obtenido": f"{cantidad} registro(s) en la tabla" if es_ok else "Sin resultados en la tabla",
-            "estado": "ok" if es_ok else "fail",
+        resultado_evento = {
+            "prueba": resultado.get("prueba", prueba_id),
+            "dato_entrada": resultado.get("dato_entrada", "-"),
+            "esperado": resultado.get("esperado", "Ejecucion sin errores"),
+            "obtenido": resultado.get("obtenido", "Prueba completada correctamente"),
+            "estado": resultado.get("estado", "ok"),
             "fecha": fecha,
             "empresa": empresa,
             "usuario": usuario,
-        })
-
-        enviar_evento(session_id, "fin", {"exito": es_ok})
+        }
+        enviar_evento(session_id, "resultado", resultado_evento)
+        enviar_evento(session_id, "fin", {"exito": resultado.get("estado") == "ok"})
 
     except Exception as e:
         enviar_evento(session_id, "error", {"mensaje": str(e)})
@@ -177,6 +181,11 @@ def config():
     })
 
 
+@app.route("/pruebas")
+def listar_pruebas_endpoint():
+    return jsonify(descubrir_pruebas())
+
+
 @app.route("/ejecutar", methods=["POST"])
 def ejecutar():
     data = request.get_json() or {}
@@ -184,12 +193,21 @@ def ejecutar():
     password = data.get("password", PASSWORD)
     empresa = data.get("empresa", EMPRESA)
     url_base = data.get("url", URL_BASE)
+    prueba_id = data.get("prueba")
+
+    if not prueba_id:
+        return jsonify({"error": "Falta el campo 'prueba'"}), 400
+
+    # Verificar que la prueba existe
+    pruebas = [p["id"] for p in descubrir_pruebas()]
+    if prueba_id not in pruebas:
+        return jsonify({"error": f"Prueba '{prueba_id}' no encontrada"}), 404
 
     session_id = str(datetime.now().timestamp())
     eventos[session_id] = queue.Queue()
     hilo = threading.Thread(
-        target=ejecutar_prueba,
-        args=(session_id, usuario, password, empresa, url_base),
+        target=ejecutar_prueba_generica,
+        args=(session_id, usuario, password, empresa, url_base, prueba_id),
         daemon=True,
     )
     hilo.start()
@@ -217,5 +235,5 @@ def stream(session_id):
 
 
 if __name__ == "__main__":
-    print("Servidor iniciado en http://localhost:5000")
+    print("Servidor iniciado en http://localhost:5050")
     app.run(debug=False, port=5050)

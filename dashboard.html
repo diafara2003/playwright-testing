@@ -543,6 +543,26 @@
 
         .config-url { grid-column: 1 / -1; }
 
+        .config-field select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--gray-900);
+            background: var(--gray-50);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .config-field select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(44,82,130,0.1);
+            background: white;
+        }
+
         .footer { text-align: center; padding: 28px; color: var(--gray-400); font-size: 12px; }
 
         /* Spinner */
@@ -606,6 +626,12 @@
                 <div class="config-field config-url">
                     <label>URL</label>
                     <input type="text" id="cfgUrl" placeholder="URL de SINCO ERP">
+                </div>
+                <div class="config-field config-url">
+                    <label>Prueba a ejecutar</label>
+                    <select id="cfgPrueba">
+                        <option value="">Cargando pruebas...</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -707,6 +733,23 @@
                 document.getElementById('cfgUrl').value = cfg.url || '';
             });
 
+        // Cargar pruebas disponibles
+        fetch('/pruebas')
+            .then(r => r.json())
+            .then(pruebas => {
+                const select = document.getElementById('cfgPrueba');
+                select.innerHTML = '';
+                pruebas.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.nombre;
+                    select.appendChild(opt);
+                });
+                if (pruebas.length === 0) {
+                    select.innerHTML = '<option value="">No hay pruebas disponibles</option>';
+                }
+            });
+
         function abrirLightbox(src) {
             document.getElementById('lightboxImg').src = src;
             document.getElementById('lightbox').classList.add('active');
@@ -741,6 +784,7 @@
                 password: document.getElementById('cfgPassword').value.trim(),
                 empresa: document.getElementById('cfgEmpresa').value.trim(),
                 url: document.getElementById('cfgUrl').value.trim(),
+                prueba: document.getElementById('cfgPrueba').value,
             };
         }
 
