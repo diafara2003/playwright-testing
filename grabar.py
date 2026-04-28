@@ -114,6 +114,8 @@ for linea in codigo_grabado.split("\n"):
     linea_limpia = linea.replace('page.locator("#pagina1").content_frame', 'frame')
     # Reemplazar page. por pagina. para acciones fuera del frame
     linea_limpia = linea_limpia.replace('page.', 'pagina.')
+    # Corregir locators ambiguos del menu de navegacion
+    linea_limpia = linea_limpia.replace('pagina.get_by_text("ADPRO")', 'pagina.get_by_title("Administración de proyectos")')
     if linea_limpia.strip():
         lineas_acciones.append(linea_limpia)
 
