@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import subprocess
 from playwright.sync_api import sync_playwright
@@ -97,8 +98,20 @@ if not codigo_grabado:
     print("\nNo se capturo codigo. Verifica que realizaste acciones en el navegador.")
     sys.exit(1)
 
+# Patrones de navegacion que server.py ya ejecuta antes de llamar ejecutar()
+NAVEGACION_YA_HECHA = [
+    'get_by_title("Administración de proyectos")',
+    'get_by_title("Ruta: ADPRO',
+    'get_by_role("button", name="Almacén")',
+    'get_by_role("button", name="PEDIDOS")',
+    'get_by_role("button", name="Pedidos proyecto")',
+    'get_by_text("ADPRO")',
+    '#verifica-ADPRO',
+]
+
 # === PASO 3: Extraer solo las acciones del frame ===
 lineas_acciones = []
+num_paso = 0
 for linea in codigo_grabado.split("\n"):
     linea_strip = linea.strip()
     # Saltar boilerplate de codegen
@@ -110,14 +123,75 @@ for linea in codigo_grabado.split("\n"):
         continue
     if not linea_strip or linea_strip == "# ---------------------":
         continue
+    # Saltar cierre de pagina (rompe el runner)
+    if "page.close()" in linea_strip or "pagina.close()" in linea_strip:
+        continue
+    # Saltar navegacion que ya hace server.py
+    if any(pat in linea_strip for pat in NAVEGACION_YA_HECHA):
+        continue
     # Reemplazar page.locator("#pagina1").content_frame por frame
     linea_limpia = linea.replace('page.locator("#pagina1").content_frame', 'frame')
     # Reemplazar page. por pagina. para acciones fuera del frame
     linea_limpia = linea_limpia.replace('page.', 'pagina.')
-    # Corregir locators ambiguos del menu de navegacion
-    linea_limpia = linea_limpia.replace('pagina.get_by_text("ADPRO")', 'pagina.get_by_title("Administración de proyectos")')
     if linea_limpia.strip():
+        es_frame = linea_limpia.lstrip().startswith("frame.")
+        # === REEMPLAZOS DE LOCATORS FRAGILES DE MUI ===
+
+        # 1) IDs dinamicos de React: _r_XX_, :rXX:
+        #    React genera IDs como _r_49_ o :r3a: que cambian cada render
+        linea_limpia = re.sub(
+            r'\.locator\(["\'][^"\']*_r_\d+_[^"\']*["\']\)',
+            '.get_by_role("textbox")',
+            linea_limpia,
+        )
+        linea_limpia = re.sub(
+            r'\.locator\(["\'][^"\']*:r[0-9a-f]+:[^"\']*["\']\)',
+            '.get_by_role("textbox")',
+            linea_limpia,
+        )
+
+        # 2) Locators posicionales de MUI DataGrid (div:nth-child(N) > .MuiBox-root)
+        #    MUI DataGrid usa role="row" y role="gridcell", NO <tr>/<td>
+        linea_limpia = re.sub(
+            r'\.locator\("div:nth-child\(\d+\) > \.MuiBox-root"\)(\.first)?',
+            '.get_by_role("row").last.get_by_role("gridcell").last',
+            linea_limpia,
+        )
+
+        # 3) Clases CSS-in-JS de emotion (.css-XXXXXXX)
+        #    MUI genera clases como .css-1tdeh38 que cambian entre builds
+        #    Reemplazamos con locator visible generico + force click
+        linea_limpia = re.sub(
+            r'\.locator\("\.css-[a-z0-9]+"\)',
+            '.locator("button:visible, [role=\'button\']").last',
+            linea_limpia,
+        )
+        # Para clicks en el frame: usar force=True para evitar "subtree intercepts pointer events" de MUI
+        if es_frame and ".click()" in linea_limpia:
+            linea_limpia = linea_limpia.replace(".click()", ".click(force=True)")
         lineas_acciones.append(linea_limpia)
+        # Inyectar espera y captura despues de clicks
+        indent = len(linea_limpia) - len(linea_limpia.lstrip())
+        espacio = " " * indent
+        if ".click(" in linea_limpia:
+            # Extraer descripcion del click
+            desc_match = re.search(r'name="([^"]+)"', linea_limpia)
+            if not desc_match:
+                desc_match = re.search(r'get_by_text\("([^"]+)"', linea_limpia)
+            if not desc_match:
+                desc_match = re.search(r'get_by_title\("([^"]+)"', linea_limpia)
+            desc = desc_match.group(1) if desc_match else "Accion"
+            num_paso += 1
+            if es_frame:
+                lineas_acciones.append(f"{espacio}pagina.wait_for_timeout(3000)")
+            else:
+                lineas_acciones.append(f"{espacio}pagina.wait_for_load_state('networkidle')")
+                lineas_acciones.append(f"{espacio}pagina.wait_for_timeout(500)")
+            lineas_acciones.append(f'{espacio}if on_paso: on_paso("{desc}")')
+        elif ".fill(" in linea_limpia and es_frame:
+            lineas_acciones.append(f"{espacio}pagina.wait_for_timeout(1000)")
+        elif ".select_option(" in linea_limpia:
+            lineas_acciones.append(f"{espacio}pagina.wait_for_timeout(500)")
 
 acciones = "\n".join(lineas_acciones)
 
@@ -128,12 +202,14 @@ contenido = f'''"""
 Prueba: {nombre_bonito}
 Generada con playwright codegen
 """
+import re
 
 
-def ejecutar(pagina, frame):
+def ejecutar(pagina, frame, on_paso=None):
     """
     Ejecuta la prueba '{nombre_bonito}'.
     Recibe la pagina ya logueada y el frame de Pedidos Proyecto.
+    on_paso: callback opcional para reportar progreso con screenshot.
     Retorna dict con el resultado.
     """
 {acciones}
@@ -148,4 +224,5 @@ with open(archivo_salida, "w", encoding="utf-8") as f:
     f.write(contenido)
 
 print(f"\nPrueba guardada en: {archivo_salida}")
+print(f"Pasos de prueba detectados: {num_paso}")
 print(f"Ya puedes ejecutarla desde el dashboard en http://localhost:5050")
