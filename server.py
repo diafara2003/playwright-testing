@@ -122,34 +122,21 @@ def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, p
             pagina.wait_for_timeout(5000)
             paso("Ingresar", "Ingreso al sistema completado", captura(pagina))
 
-            # Paso 6: Navegar menu
-            pagina.get_by_title("Administración de proyectos").click()
-            pagina.wait_for_timeout(2000)
-            pagina.get_by_title("Ruta: ADPRO/Almacén").click()
-            pagina.wait_for_timeout(2000)
-            pagina.get_by_role("button", name="PEDIDOS").click()
-            pagina.wait_for_timeout(2000)
-            pagina.get_by_role("button", name="Pedidos proyecto").click()
-            pagina.wait_for_load_state("networkidle")
-            pagina.wait_for_timeout(8000)
-            paso("Navegacion", "Ruta: ADPRO > Almacen > Pedidos > Pedidos proyecto", captura(pagina))
-
-            # Paso 7: Screenshot antes de la prueba
+            # Paso 6: Screenshot antes de la prueba
             paso("Inicio prueba", f"Ejecutando prueba: {prueba_id}", captura(pagina))
 
             # Contar pasos dinamicos del test para calcular el progreso total
             import inspect
             source = inspect.getsource(modulo.ejecutar)
             pasos_dinamicos = source.count("if on_paso:")
-            total_pasos = 7 + pasos_dinamicos + 1  # 7 fijos + dinamicos + validacion
+            total_pasos = 6 + pasos_dinamicos + 1  # 6 fijos + dinamicos + validacion
 
             # Callback para capturar screenshot en cada accion del test
             def on_paso_test(descripcion):
                 paso(f"Prueba: {descripcion}", f"Accion completada: {descripcion}", captura(pagina))
 
-            # Paso 8..N: Ejecutar la prueba grabada (con capturas por accion)
-            frame = pagina.locator("#pagina1").content_frame
-            resultado = modulo.ejecutar(pagina, frame, on_paso=on_paso_test)
+            # Paso 7..N: Ejecutar la prueba grabada (navegacion + acciones)
+            resultado = modulo.ejecutar(pagina, None, on_paso=on_paso_test)
 
             # Paso final: Validacion
             paso("Validacion", "Prueba finalizada", captura(pagina))

@@ -52,17 +52,6 @@ with sync_playwright() as p:
     pagina.wait_for_load_state("networkidle")
     pagina.wait_for_timeout(5000)
 
-    print("Navegando a Pedidos Proyecto...")
-    pagina.get_by_title("Administración de proyectos").click()
-    pagina.wait_for_timeout(2000)
-    pagina.get_by_title("Ruta: ADPRO/Almacén").click()
-    pagina.wait_for_timeout(2000)
-    pagina.get_by_role("button", name="PEDIDOS").click()
-    pagina.wait_for_timeout(2000)
-    pagina.get_by_role("button", name="Pedidos proyecto").click()
-    pagina.wait_for_load_state("networkidle")
-    pagina.wait_for_timeout(8000)
-
     url_actual = pagina.url
     contexto.storage_state(path="sesion.json")
     navegador.close()
@@ -70,8 +59,8 @@ with sync_playwright() as p:
 print("\nSesion guardada. Abriendo grabador...")
 print("=" * 50)
 print("INSTRUCCIONES:")
-print("1. Se abre un navegador con el grabador de Playwright")
-print("2. Navega a Pedidos Proyecto si no estas ahi")
+print("1. Se abre un navegador ya logueado en SINCO")
+print("2. Navega al modulo que quieras probar (ej. ADPRO > Contratos)")
 print("3. Realiza las acciones de tu prueba")
 print("4. Cuando termines, CIERRA el navegador")
 print(f"5. El archivo se guardara en: {archivo_salida}")
@@ -98,20 +87,10 @@ if not codigo_grabado:
     print("\nNo se capturo codigo. Verifica que realizaste acciones en el navegador.")
     sys.exit(1)
 
-# Patrones de navegacion que server.py ya ejecuta antes de llamar ejecutar()
-NAVEGACION_YA_HECHA = [
-    'get_by_title("Administración de proyectos")',
-    'get_by_title("Ruta: ADPRO',
-    'get_by_role("button", name="Almacén")',
-    'get_by_role("button", name="PEDIDOS")',
-    'get_by_role("button", name="Pedidos proyecto")',
-    'get_by_text("ADPRO")',
-    '#verifica-ADPRO',
-]
-
-# === PASO 3: Extraer solo las acciones del frame ===
+# === PASO 3: Extraer solo las acciones (navegacion + prueba) ===
 lineas_acciones = []
 num_paso = 0
+frame_asignado = False
 for linea in codigo_grabado.split("\n"):
     linea_strip = linea.strip()
     # Saltar boilerplate de codegen
@@ -126,15 +105,18 @@ for linea in codigo_grabado.split("\n"):
     # Saltar cierre de pagina (rompe el runner)
     if "page.close()" in linea_strip or "pagina.close()" in linea_strip:
         continue
-    # Saltar navegacion que ya hace server.py
-    if any(pat in linea_strip for pat in NAVEGACION_YA_HECHA):
-        continue
-    # Reemplazar page.locator("#pagina1").content_frame por frame
+    # Reemplazar page.locator("#pagina1").content_frame.XXX por asignacion de frame + frame.XXX
     linea_limpia = linea.replace('page.locator("#pagina1").content_frame', 'frame')
     # Reemplazar page. por pagina. para acciones fuera del frame
     linea_limpia = linea_limpia.replace('page.', 'pagina.')
     if linea_limpia.strip():
         es_frame = linea_limpia.lstrip().startswith("frame.")
+        # Auto-asignar frame la primera vez que se usa
+        if es_frame and not frame_asignado:
+            frame_asignado = True
+            indent = len(linea_limpia) - len(linea_limpia.lstrip())
+            espacio = " " * indent
+            lineas_acciones.append(f'{espacio}frame = pagina.locator("#pagina1").content_frame')
         # === REEMPLAZOS DE LOCATORS FRAGILES DE MUI ===
 
         # 1) IDs dinamicos de React: _r_XX_, :rXX:
@@ -208,7 +190,8 @@ import re
 def ejecutar(pagina, frame, on_paso=None):
     """
     Ejecuta la prueba '{nombre_bonito}'.
-    Recibe la pagina ya logueada y el frame de Pedidos Proyecto.
+    Recibe la pagina ya logueada en SINCO (despues de seleccionar empresa).
+    La prueba incluye la navegacion al modulo correspondiente.
     on_paso: callback opcional para reportar progreso con screenshot.
     Retorna dict con el resultado.
     """
