@@ -61,7 +61,14 @@ def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, p
     total_pasos = 9
 
     def captura(pagina):
-        buf = pagina.screenshot()
+        try:
+            iframe = pagina.locator("#pagina1")
+            if iframe.count() > 0:
+                buf = iframe.screenshot()
+            else:
+                buf = pagina.screenshot()
+        except Exception:
+            buf = pagina.screenshot()
         return base64.b64encode(buf).decode("utf-8")
 
     def paso(nombre, descripcion, screenshot_b64=None):
@@ -89,7 +96,8 @@ def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, p
     try:
         with sync_playwright() as p:
             navegador = p.chromium.launch(headless=True)
-            pagina = navegador.new_page()
+            contexto = navegador.new_context(ignore_https_errors=True)
+            pagina = contexto.new_page()
 
             # Paso 1: Abrir SINCO
             pagina.goto(url_base)
@@ -136,7 +144,13 @@ def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, p
                 paso(f"Prueba: {descripcion}", f"Accion completada: {descripcion}", captura(pagina))
 
             # Paso 7..N: Ejecutar la prueba grabada (navegacion + acciones)
-            resultado = modulo.ejecutar(pagina, None, on_paso=on_paso_test)
+            # Intentar obtener el frame del iframe #pagina1 si ya existe
+            try:
+                pagina.locator("#pagina1").wait_for(state="attached", timeout=5000)
+                frame = pagina.locator("#pagina1").content_frame
+            except Exception:
+                frame = None
+            resultado = modulo.ejecutar(pagina, frame, on_paso=on_paso_test)
 
             # Paso final: Validacion
             paso("Validacion", "Prueba finalizada", captura(pagina))

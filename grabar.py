@@ -23,7 +23,7 @@ print("=" * 50)
 
 with sync_playwright() as p:
     navegador = p.chromium.launch(headless=False)
-    contexto = navegador.new_context()
+    contexto = navegador.new_context(ignore_https_errors=True)
     pagina = contexto.new_page()
 
     print("Abriendo SINCO...")
@@ -71,6 +71,7 @@ archivo_temp = "grabacion_temp.py"
 subprocess.run(
     [sys.executable, "-m", "playwright", "codegen",
      "--load-storage=sesion.json", "--target", "python",
+     "--ignore-https-errors",
      "-o", archivo_temp, url_actual],
 )
 
@@ -88,6 +89,34 @@ if not codigo_grabado:
     sys.exit(1)
 
 # === PASO 3: Extraer solo las acciones (navegacion + prueba) ===
+
+# Detectar tecnologia del codigo grabado
+es_mui = any(p in codigo_grabado for p in ['Mui', 'css-', '_r_', ':r'])
+if es_mui:
+    print("Tecnologia detectada: React/MUI - aplicando limpieza de selectores")
+else:
+    print("Tecnologia detectada: HTML puro")
+
+
+def _reemplazar_id_react(match, linea_contexto):
+    """Reemplaza IDs dinamicos de React con selectores estables."""
+    # Buscar si la linea tiene .fill() -> es un input/textbox
+    if ".fill(" in linea_contexto:
+        # Buscar placeholder en el contexto cercano
+        ph = re.search(r'placeholder=["\']([^"\']+)["\']', linea_contexto)
+        if ph:
+            return f'.get_by_placeholder("{ph.group(1)}")'
+        return '.get_by_role("textbox")'
+    # Buscar si tiene .select_option() -> es un combobox
+    if ".select_option(" in linea_contexto:
+        return '.get_by_role("combobox")'
+    # Buscar si tiene .check() o .uncheck() -> es un checkbox
+    if ".check(" in linea_contexto or ".uncheck(" in linea_contexto:
+        return '.get_by_role("checkbox")'
+    # Default: textbox (la mayoria de inputs MUI con ID React son textbox)
+    return '.get_by_role("textbox")'
+
+
 lineas_acciones = []
 num_paso = 0
 frame_asignado = False
@@ -117,39 +146,65 @@ for linea in codigo_grabado.split("\n"):
             indent = len(linea_limpia) - len(linea_limpia.lstrip())
             espacio = " " * indent
             lineas_acciones.append(f'{espacio}frame = pagina.locator("#pagina1").content_frame')
+        # === REEMPLAZOS GENERALES (ambas tecnologias) ===
+
+        # Navegacion de modulos: get_by_text("ADPRO") es ambiguo (3 matches)
+        # Codegen graba el texto del boton pero hay multiples elementos con "ADPRO"
+        linea_limpia = linea_limpia.replace(
+            'get_by_text("ADPRO").click()',
+            'get_by_title("Administración de proyectos").click()',
+        )
+        linea_limpia = linea_limpia.replace(
+            "get_by_text('ADPRO').click()",
+            "get_by_title('Administración de proyectos').click()",
+        )
+
         # === REEMPLAZOS DE LOCATORS FRAGILES DE MUI ===
+        if es_mui:
+            # 1) IDs dinamicos de React: _r_XX_, :rXX:, mui-XX
+            #    React/MUI genera IDs que cambian cada render/sesion
+            #    Estrategia: buscar placeholder o aria-label en el selector,
+            #    si no hay, usar get_by_role con el tipo de elemento correcto
 
-        # 1) IDs dinamicos de React: _r_XX_, :rXX:
-        #    React genera IDs como _r_49_ o :r3a: que cambian cada render
-        linea_limpia = re.sub(
-            r'\.locator\(["\'][^"\']*_r_\d+_[^"\']*["\']\)',
-            '.get_by_role("textbox")',
-            linea_limpia,
-        )
-        linea_limpia = re.sub(
-            r'\.locator\(["\'][^"\']*:r[0-9a-f]+:[^"\']*["\']\)',
-            '.get_by_role("textbox")',
-            linea_limpia,
-        )
+            # 1a) IDs React en formato #_r_XX_ o selector CSS
+            linea_limpia = re.sub(
+                r'\.locator\(["\']#?(?:_r_\d+_|:r[0-9a-f]+:|mui-\d+)[^"\']*["\']\)',
+                lambda m: _reemplazar_id_react(m, linea_limpia),
+                linea_limpia,
+            )
+            # 1b) IDs React en formato [id="_r_XX_"] o [id=":rXX:"] (atributo selector)
+            linea_limpia = re.sub(
+                r'\.locator\(["\'][^"\']*\[id=[\\"\']?(?:_r_\d+_|:r[0-9a-f]+:|mui-\d+)[\\"\']?\][^"\']*["\']\)',
+                lambda m: _reemplazar_id_react(m, linea_limpia),
+                linea_limpia,
+            )
 
-        # 2) Locators posicionales de MUI DataGrid (div:nth-child(N) > .MuiBox-root)
-        #    MUI DataGrid usa role="row" y role="gridcell", NO <tr>/<td>
-        linea_limpia = re.sub(
-            r'\.locator\("div:nth-child\(\d+\) > \.MuiBox-root"\)(\.first)?',
-            '.get_by_role("row").last.get_by_role("gridcell").last',
-            linea_limpia,
-        )
+            # 2) Locators posicionales de MUI DataGrid (div:nth-child(N) > .MuiBox-root)
+            #    MUI DataGrid usa role="row" y role="gridcell", NO <tr>/<td>
+            linea_limpia = re.sub(
+                r'\.locator\("div:nth-child\(\d+\) > \.MuiBox-root"\)(\.first)?',
+                '.get_by_role("row").last.get_by_role("gridcell").last',
+                linea_limpia,
+            )
 
-        # 3) Clases CSS-in-JS de emotion (.css-XXXXXXX)
-        #    MUI genera clases como .css-1tdeh38 que cambian entre builds
-        #    Reemplazamos con locator visible generico + force click
-        linea_limpia = re.sub(
-            r'\.locator\("\.css-[a-z0-9]+"\)',
-            '.locator("button:visible, [role=\'button\']").last',
-            linea_limpia,
-        )
-        # Para clicks en el frame: usar force=True para evitar "subtree intercepts pointer events" de MUI
-        if es_frame and ".click()" in linea_limpia:
+            # 3) Clases CSS-in-JS (.css-XXXXXXX) solas o combinadas
+            #    MUI genera clases como .css-1tdeh38 que cambian entre builds
+            #    Buscar contexto: si hay .click() es probablemente un boton
+            if re.search(r'\.locator\("[^"]*\.css-[a-z0-9]+', linea_limpia):
+                if ".click(" in linea_limpia or ".click()" in linea_limpia:
+                    reemplazo_css = '.locator("button:visible").last'
+                elif ".fill(" in linea_limpia:
+                    reemplazo_css = '.get_by_role("textbox")'
+                else:
+                    reemplazo_css = '.locator("[role]:visible").last'
+                linea_limpia = re.sub(
+                    r'\.locator\("[^"]*\.css-[a-z0-9]+[^"]*"\)',
+                    reemplazo_css,
+                    linea_limpia,
+                )
+
+        # Para clicks en el frame con MUI: usar force=True para evitar "subtree intercepts pointer events"
+        if es_frame and es_mui and ".click()" in linea_limpia:
             linea_limpia = linea_limpia.replace(".click()", ".click(force=True)")
         lineas_acciones.append(linea_limpia)
         # Inyectar espera y captura despues de clicks
