@@ -13,10 +13,10 @@ app = Flask(__name__)
 
 eventos = {}
 
-USUARIO = "office"
-PASSWORD = "Office123"
-EMPRESA = "SincoPlus Pruebas Módulos"
-URL_BASE = "https://www4.sincoerp.com/SincoPlusPruebasModulos2022/V3/Marco/Seleccion_iv.aspx"
+USUARIO = "admin"
+PASSWORD = "Admin123"
+EMPRESA = "Demo SAS"
+URL_BASE = "https://desarrollo.sincoerp.com/SincoOk/V3/Marco/Login_iv.aspx"
 PRUEBAS_DIR = os.path.join(os.path.dirname(__file__), "pruebas")
 
 
@@ -113,22 +113,38 @@ def ejecutar_prueba_generica(session_id, usuario, password, empresa, url_base, p
 
             # Paso 3: Login
             pagina.locator("button:visible").nth(0).click()
-            pagina.wait_for_load_state("networkidle")
+            try:
+                pagina.wait_for_load_state("load", timeout=30000)
+            except Exception:
+                paginas = contexto.pages
+                if paginas:
+                    pagina = paginas[-1]
+                    pagina.wait_for_load_state("load", timeout=15000)
             pagina.wait_for_timeout(5000)
             paso("Login", "Sesion iniciada correctamente", captura(pagina))
 
-            # Paso 4: Empresa
-            pagina.locator("#ddlEmpresa").select_option(label=empresa)
-            pagina.wait_for_timeout(3000)
-            paso("Empresa", f"Empresa seleccionada: {empresa}", captura(pagina))
+            # Paso 4: Empresa (si existe el selector)
+            tiene_empresa = pagina.locator("#ddlEmpresa").count() > 0
+            if tiene_empresa:
+                pagina.locator("#ddlEmpresa").select_option(label=empresa)
+                pagina.wait_for_timeout(3000)
+                paso("Empresa", f"Empresa seleccionada: {empresa}", captura(pagina))
+            else:
+                paso("Empresa", "Selector de empresa no encontrado, continuando", captura(pagina))
 
-            # Paso 5: Ingresar
-            boton = pagina.locator("button:has-text('Ingresar'), input[value='Ingresar'], a:has-text('Ingresar'), :text('Ingresar')").first
-            boton.wait_for(state="visible", timeout=10000)
-            boton.click()
-            pagina.wait_for_load_state("networkidle")
-            pagina.wait_for_timeout(5000)
-            paso("Ingresar", "Ingreso al sistema completado", captura(pagina))
+            # Paso 5: Ingresar (si existe el boton)
+            boton_ingresar = pagina.locator("button:has-text('Ingresar'), input[value='Ingresar'], a:has-text('Ingresar'), :text('Ingresar')")
+            if boton_ingresar.count() > 0:
+                boton_ingresar.first.wait_for(state="visible", timeout=10000)
+                boton_ingresar.first.click()
+                try:
+                    pagina.wait_for_load_state("load", timeout=15000)
+                except Exception:
+                    pass
+                pagina.wait_for_timeout(5000)
+                paso("Ingresar", "Ingreso al sistema completado", captura(pagina))
+            else:
+                paso("Ingresar", "Ya ingresado al sistema", captura(pagina))
 
             # Paso 6: Screenshot antes de la prueba
             paso("Inicio prueba", f"Ejecutando prueba: {prueba_id}", captura(pagina))

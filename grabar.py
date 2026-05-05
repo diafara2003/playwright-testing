@@ -4,9 +4,9 @@ import sys
 import subprocess
 from playwright.sync_api import sync_playwright
 
-USUARIO = "office"
-PASSWORD = "Office123"
-EMPRESA = "SincoPlus Pruebas Módulos"
+USUARIO = "admin"
+PASSWORD = "Admin123"
+EMPRESA = "DEMO SAS"
 
 if len(sys.argv) < 2:
     print("Uso: python3 grabar.py <nombre_prueba>")
@@ -27,7 +27,7 @@ with sync_playwright() as p:
     pagina = contexto.new_page()
 
     print("Abriendo SINCO...")
-    pagina.goto("https://www4.sincoerp.com/SincoPlusPruebasModulos2022/V3/Marco/Seleccion_iv.aspx")
+    pagina.goto("https://desarrollo.sincoerp.com/SincoOk/V3/Marco/Login_iv.aspx")
     pagina.wait_for_load_state("networkidle")
 
     print("Ingresando credenciales...")
@@ -38,19 +38,34 @@ with sync_playwright() as p:
 
     print("Iniciando sesion...")
     pagina.locator("button:visible").nth(0).click()
-    pagina.wait_for_load_state("networkidle")
+    try:
+        pagina.wait_for_load_state("load", timeout=30000)
+    except Exception:
+        # Si la pagina original se cerro, buscar la pagina activa del contexto
+        paginas = contexto.pages
+        if paginas:
+            pagina = paginas[-1]
+            pagina.wait_for_load_state("load", timeout=15000)
     pagina.wait_for_timeout(5000)
 
-    print(f"Seleccionando empresa: {EMPRESA}...")
-    pagina.locator("#ddlEmpresa").select_option(label=EMPRESA)
-    pagina.wait_for_timeout(3000)
+    # Verificar si hay selector de empresa (puede que el login redirija directo)
+    tiene_empresa = pagina.locator("#ddlEmpresa").count() > 0
+    if tiene_empresa:
+        print(f"Seleccionando empresa: {EMPRESA}...")
+        pagina.locator("#ddlEmpresa").select_option(label=EMPRESA)
+        pagina.wait_for_timeout(3000)
 
-    print("Haciendo click en Ingresar...")
-    boton = pagina.locator("button:has-text('Ingresar'), input[value='Ingresar'], a:has-text('Ingresar'), :text('Ingresar')").first
-    boton.wait_for(state="visible", timeout=10000)
-    boton.click()
-    pagina.wait_for_load_state("networkidle")
-    pagina.wait_for_timeout(5000)
+        print("Haciendo click en Ingresar...")
+        boton = pagina.locator("button:has-text('Ingresar'), input[value='Ingresar'], a:has-text('Ingresar'), :text('Ingresar')").first
+        boton.wait_for(state="visible", timeout=10000)
+        boton.click()
+        try:
+            pagina.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            pass
+        pagina.wait_for_timeout(5000)
+    else:
+        print("No se encontro selector de empresa, continuando...")
 
     url_actual = pagina.url
     contexto.storage_state(path="sesion.json")
@@ -166,15 +181,10 @@ for linea in codigo_grabado.split("\n"):
             #    Estrategia: buscar placeholder o aria-label en el selector,
             #    si no hay, usar get_by_role con el tipo de elemento correcto
 
-            # 1a) IDs React en formato #_r_XX_ o selector CSS
+            # 1a) Cualquier .locator() que contenga un ID dinamico de React
+            #     Patrones: _r_XX_, :rXX:, mui-XX (en cualquier formato de selector)
             linea_limpia = re.sub(
-                r'\.locator\(["\']#?(?:_r_\d+_|:r[0-9a-f]+:|mui-\d+)[^"\']*["\']\)',
-                lambda m: _reemplazar_id_react(m, linea_limpia),
-                linea_limpia,
-            )
-            # 1b) IDs React en formato [id="_r_XX_"] o [id=":rXX:"] (atributo selector)
-            linea_limpia = re.sub(
-                r'\.locator\(["\'][^"\']*\[id=[\\"\']?(?:_r_\d+_|:r[0-9a-f]+:|mui-\d+)[\\"\']?\][^"\']*["\']\)',
+                r'\.locator\([^)]*(?:_r_\d+_|:r[0-9a-f]+:|mui-\d+)[^)]*\)',
                 lambda m: _reemplazar_id_react(m, linea_limpia),
                 linea_limpia,
             )
@@ -206,6 +216,20 @@ for linea in codigo_grabado.split("\n"):
         # Para clicks en el frame con MUI: usar force=True para evitar "subtree intercepts pointer events"
         if es_frame and es_mui and ".click()" in linea_limpia:
             linea_limpia = linea_limpia.replace(".click()", ".click(force=True)")
+
+        # Si un .fill() usa get_by_role("textbox") despues de un click en gridcell,
+        # el textbox es el input de edicion de la celda (MUI DataGrid)
+        if es_mui and es_frame and '.get_by_role("textbox").fill(' in linea_limpia:
+            # Verificar si la accion anterior fue un click en gridcell/row
+            acciones_previas = [a for a in lineas_acciones if a.strip() and not a.strip().startswith("if on_paso") and not a.strip().startswith("pagina.wait")]
+            if acciones_previas:
+                ultima = acciones_previas[-1]
+                if "gridcell" in ultima or "get_by_role(\"row\")" in ultima or "MuiBox" in ultima:
+                    linea_limpia = linea_limpia.replace(
+                        '.get_by_role("textbox").fill(',
+                        '.locator(".MuiDataGrid-cell--editing input, .MuiBox-root input:visible").last.fill(',
+                    )
+
         lineas_acciones.append(linea_limpia)
         # Inyectar espera y captura despues de clicks
         indent = len(linea_limpia) - len(linea_limpia.lstrip())
